@@ -71,5 +71,6 @@ describe("GIS Map Layers (REQ-03)", () => {
     );
 
     expect(layer.status).toBe("failed");
+    expect(layer.failure_reason).toMatch(/invalid JSON/i);
   });
 });

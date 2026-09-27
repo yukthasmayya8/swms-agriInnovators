@@ -66,6 +66,6 @@ describe("Habitation Parameters (REQ-02)", () => {
       .send({ population: 3500, populationDensityPerSqKm: 850, growthRatePct: 2.0, expectedVersion: 999 });
 
     expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe("RESOURCE_CONFLICT");
+    expect(res.body.error.code).toBe("CONFLICT");
   });
 });

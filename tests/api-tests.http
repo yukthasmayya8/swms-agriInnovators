@@ -1,0 +1,92 @@
+# Standalone API Tests for SWMS Backend (HPL 2026 Week 1 Specification)
+# You can run these using REST Client in VS Code / Antigravity or convert to cURL commands.
+
+### 1. Health Check
+GET http://localhost:4000/health
+
+### 2. Register Researcher Account (API-01, BR-08: starts as is_active = false)
+POST http://localhost:4000/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "New Researcher",
+  "email": "new_researcher@swms.gov.in",
+  "password": "Password123!"
+}
+
+### 3. Login as Admin (API-02)
+# @name adminLogin
+POST http://localhost:4000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@swms.dev",
+  "password": "Password123!"
+}
+
+### 4. Admin Activates User Account (API-18)
+PATCH http://localhost:4000/api/users/{{newUserId}}/activate
+Authorization: Bearer {{adminLogin.response.body.data.accessToken}}
+Content-Type: application/json
+
+{
+  "isActive": true,
+  "role": "planner"
+}
+
+### 5. Login as Planner (API-02)
+# @name plannerLogin
+POST http://localhost:4000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "planner@swms.dev",
+  "password": "Password123!"
+}
+
+### 6. Create Habitation (API-05)
+# @name createHabitation
+POST http://localhost:4000/api/habitations
+Authorization: Bearer {{plannerLogin.response.body.data.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Shirva Town Ward 4",
+  "type": "town",
+  "latitude": 13.2145,
+  "longitude": 74.7398
+}
+
+### 7. Get Habitation Profile (API-06)
+GET http://localhost:4000/api/habitations/{{createHabitation.response.body.data.id}}
+Authorization: Bearer {{plannerLogin.response.body.data.accessToken}}
+
+### 8. Upsert Parameter Category (API-10, BR-03)
+PUT http://localhost:4000/api/habitations/{{createHabitation.response.body.data.id}}/parameters/demography
+Authorization: Bearer {{plannerLogin.response.body.data.accessToken}}
+Content-Type: application/json
+
+{
+  "population": 4300,
+  "populationDensityPerSqKm": 950,
+  "growthRatePct": 2.1,
+  "floatingPopPct": 8,
+  "householdSize": 4.6,
+  "literacyPct": 78
+}
+
+### 9. Read Parameter Category History (API-11)
+GET http://localhost:4000/api/habitations/{{createHabitation.response.body.data.id}}/parameters/demography/history
+Authorization: Bearer {{plannerLogin.response.body.data.accessToken}}
+
+### 10. Fetch GeoJSON Overlay (API-13)
+GET http://localhost:4000/api/habitations/{{createHabitation.response.body.data.id}}/map-layers?overlay=true
+Authorization: Bearer {{plannerLogin.response.body.data.accessToken}}
+
+### 11. Refresh Access Token (API-03)
+POST http://localhost:4000/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{plannerLogin.response.body.data.refreshToken}}"
+}

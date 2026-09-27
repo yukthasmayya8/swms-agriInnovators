@@ -10,7 +10,7 @@ function required(name: string): string {
 export const env = {
   port: parseInt(process.env.PORT || "4000", 10),
   nodeEnv: process.env.NODE_ENV || "development",
-  databaseUrl: required("DATABASE_URL"),
+  databaseUrl: process.env.DATABASE_URL || "postgres://postgres:postgres@localhost:5432/swms",
   redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
   jwt: {
     accessSecret: required("JWT_ACCESS_SECRET"),

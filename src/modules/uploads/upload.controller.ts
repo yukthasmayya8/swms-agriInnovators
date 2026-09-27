@@ -14,7 +14,8 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
   assertCanEditHabitation(habitation, req.user!.id, req.user!.role); // Admin or owning Planner only
 
   const batch = await service.createUploadBatch(parsed.data.habitationId, parsed.data.category, req.file, req.user!.id);
-  res.status(202).json({ success: true, data: { id: batch.id, status: batch.status, originalFilename: batch.original_filename } });
+  const status = (batch as any).isExisting ? 200 : 202;
+  res.status(status).json({ success: true, data: { id: batch.id, status: batch.status, originalFilename: batch.original_filename } });
 });
 
 export const getOne = asyncHandler(async (req: Request, res: Response) => {

@@ -1,5 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { parse } from "csv-parse/sync";
+import ExcelJS from "exceljs";
 import { ZodError } from "zod";
 import { redisConnection } from "../config/redis";
 import { query, withTransaction } from "../config/db";
@@ -49,7 +50,30 @@ async function processJob(job: Job<ValidationJobData>) {
 
   try {
     const buffer = await storage.read(batch.source_file_url);
-    const records: Record<string, string>[] = parse(buffer, { columns: true, skip_empty_lines: true, trim: true });
+    let records: Record<string, string>[];
+    if (batch.original_filename.toLowerCase().endsWith(".xlsx")) {
+      const workbook = new ExcelJS.Workbook();
+      const workbookBytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+      await workbook.xlsx.load(workbookBytes);
+      const worksheet = workbook.worksheets[0];
+      records = [];
+      if (worksheet) {
+        const headers: string[] = [];
+        worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell, column) => {
+          headers[column - 1] = cell.text.trim();
+        });
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const record: Record<string, string> = {};
+          headers.forEach((header, index) => {
+            if (header) record[header] = row.getCell(index + 1).text;
+          });
+          records.push(record);
+        });
+      }
+    } else {
+      records = parse(buffer, { columns: true, skip_empty_lines: true, trim: true });
+    }
 
     const category = batch.category as CategoryName;
     const schema = CATEGORY_SCHEMAS[category];
@@ -104,7 +128,8 @@ async function processJob(job: Job<ValidationJobData>) {
 }
 
 export function startValidationWorker() {
-  const worker = new Worker<ValidationJobData>("dataset-validation", processJob, { connection: redisConnection });
+  const queueName = process.env.NODE_ENV === "test" ? "dataset-validation-test" : "dataset-validation";
+  const worker = new Worker<ValidationJobData>(queueName, processJob, { connection: redisConnection });
   worker.on("failed", (job, err) => {
     // eslint-disable-next-line no-console
     console.error(`Validation job ${job?.id} failed:`, err.message);

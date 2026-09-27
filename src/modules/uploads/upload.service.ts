@@ -30,7 +30,7 @@ export async function createUploadBatch(
     [habitationId, category, checksum]
   );
   if (existing.rows[0]) {
-    return existing.rows[0];
+    return { ...existing.rows[0], isExisting: true };
   }
 
   const key = `uploads/${habitationId}/${crypto.randomUUID()}${ext}`;

@@ -7,6 +7,17 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS pgcrypto; -- for gen_random_uuid()
 
+-- ---------- data_sources ----------
+CREATE TABLE IF NOT EXISTS data_sources (
+  id UUID PRIMARY KEY,
+  title VARCHAR(240) NOT NULL,
+  publisher VARCHAR(160) NOT NULL,
+  source_url VARCHAR(1000) NOT NULL,
+  publication_year INTEGER,
+  source_type VARCHAR(20) NOT NULL CHECK (source_type IN ('dataset', 'map', 'policy', 'research')),
+  usage_notes TEXT NOT NULL
+);
+
 -- ---------- users ----------
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -146,7 +157,7 @@ CREATE TABLE IF NOT EXISTS map_layers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   habitation_id UUID NOT NULL REFERENCES habitations(id) ON DELETE RESTRICT,
   layer_type VARCHAR(20) NOT NULL CHECK (layer_type IN ('road', 'water_body', 'terrain', 'settlement', 'boundary')),
-  geometry geometry,
+  geometry geometry(Geometry, 4326),
   source_file_url VARCHAR(500) NOT NULL,
   status VARCHAR(15) NOT NULL DEFAULT 'processing' CHECK (status IN ('processing', 'ready', 'failed')),
   failure_reason TEXT,
@@ -156,7 +167,21 @@ CREATE TABLE IF NOT EXISTS map_layers (
   uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_map_layers_habitation ON map_layers(habitation_id);
-CREATE INDEX IF NOT EXISTS idx_map_layers_geom ON map_layers USING GIST(geometry);
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'map_layers' AND column_name = 'geometry' AND data_type = 'text'
+  ) THEN
+    ALTER TABLE map_layers
+      ALTER COLUMN geometry TYPE geometry(Geometry, 4326)
+      USING CASE
+        WHEN geometry IS NULL OR btrim(geometry) = '' THEN NULL
+        ELSE ST_SetSRID(ST_GeomFromGeoJSON(geometry), 4326)
+      END;
+  END IF;
+END $$;
 
 -- ---------- upload_batches (dataset validation — BR-05/06/07) ----------
 CREATE TABLE IF NOT EXISTS upload_batches (

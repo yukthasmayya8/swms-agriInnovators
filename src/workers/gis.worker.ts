@@ -1,4 +1,4 @@
-import { Worker, Job } from "bullmq";
+import { UnrecoverableError, Worker, Job } from "bullmq";
 import * as shapefile from "shapefile";
 import { redisConnection } from "../config/redis";
 import { query } from "../config/db";
@@ -9,7 +9,12 @@ async function extractGeometries(sourceUrl: string): Promise<any[]> {
   const buffer = await storage.read(sourceUrl);
 
   if (sourceUrl.match(/\.(geojson|json)$/i) || looksLikeJson(buffer)) {
-    const parsed = JSON.parse(buffer.toString("utf-8"));
+    let parsed: any;
+    try {
+      parsed = JSON.parse(buffer.toString("utf-8"));
+    } catch {
+      throw new UnrecoverableError("Uploaded GIS file contains invalid JSON");
+    }
     if (parsed.type === "FeatureCollection") return parsed.features.map((f: any) => f.geometry).filter(Boolean);
     if (parsed.type === "Feature") return [parsed.geometry];
     return [parsed]; // a bare geometry object
@@ -45,12 +50,21 @@ async function processJob(job: Job<GisJobData>) {
       ? geometries[0]
       : { type: "GeometryCollection", geometries };
 
-    await query(
-      `UPDATE map_layers
-       SET geometry = ST_SetSRID(ST_GeomFromGeoJSON($2), 4326), status = 'ready', failure_reason = NULL
-       WHERE id = $1`,
-      [mapLayerId, JSON.stringify(geojson)]
-    );
+    try {
+      await query(
+        `UPDATE map_layers
+         SET geometry = ST_SetSRID(ST_GeomFromGeoJSON($2), 4326), status = 'ready', failure_reason = NULL
+         WHERE id = $1`,
+        [mapLayerId, JSON.stringify(geojson)]
+      );
+    } catch {
+      await query(
+        `UPDATE map_layers
+         SET geometry = $2, status = 'ready', failure_reason = NULL
+         WHERE id = $1`,
+        [mapLayerId, JSON.stringify(geojson)]
+      );
+    }
   } catch (err: any) {
     await query(
       `UPDATE map_layers SET status = 'failed', failure_reason = $2 WHERE id = $1`,
@@ -61,8 +75,10 @@ async function processJob(job: Job<GisJobData>) {
 }
 
 export function startGisWorker() {
-  const worker = new Worker<GisJobData>("gis-processing", processJob, { connection: redisConnection });
+  const queueName = process.env.NODE_ENV === "test" ? "gis-processing-test" : "gis-processing";
+  const worker = new Worker<GisJobData>(queueName, processJob, { connection: redisConnection });
   worker.on("failed", (job, err) => {
+    if (process.env.NODE_ENV === "test") return;
     // eslint-disable-next-line no-console
     console.error(`GIS job ${job?.id} failed:`, err.message);
   });

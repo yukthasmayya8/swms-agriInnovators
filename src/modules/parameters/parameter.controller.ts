@@ -37,7 +37,7 @@ export const put = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const { row, changedFields } = await upsertCategory(habitationId, category as any, parsed.data, req.user!.id);
-  res.json({ success: true, data: { habitationId, category, updatedAt: row.updated_at, fieldsChanged: changedFields } });
+  res.json({ success: true, data: { habitationId, category, updatedAt: row.updated_at, fieldsChanged: changedFields, version: row.version } });
 });
 
 export const history = asyncHandler(async (req: Request, res: Response) => {

@@ -1,5 +1,6 @@
 import request from "supertest";
 import { Worker } from "bullmq";
+import ExcelJS from "exceljs";
 import { app, createTestUser, closeDb, pollUntil } from "./helpers";
 import { startValidationWorker } from "../src/workers/validation.worker";
 
@@ -57,7 +58,7 @@ describe("Dataset Upload & Validation (REQ-04)", () => {
     expect(issuesRes.body.data.some((i: any) => i.field === "population" && i.issueType === "missing_value")).toBe(true);
   });
 
-  test("T-10: re-upload of an identical file -> 409, existing batch returned, no duplicate", async () => {
+  test("T-10: re-upload of an identical file -> 200, existing batch returned, no duplicate", async () => {
     const csv = "habitation_id,population,populationDensityPerSqKm,growthRatePct\n" + `${habitationId},13000,4400,2.1\n`;
 
     const first = await request(app)
@@ -75,6 +76,31 @@ describe("Dataset Upload & Validation (REQ-04)", () => {
       .field("category", "demography")
       .attach("file", Buffer.from(csv), "dup.csv");
 
-    expect(second.status).toBe(409);
+    expect(second.status).toBe(200);
+    expect(second.body.data.id).toBe(first.body.data.id);
+  });
+
+  test("XLSX dataset uploads are parsed and validated", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Demography");
+    sheet.addRow(["habitation_id", "population", "populationDensityPerSqKm", "growthRatePct"]);
+    sheet.addRow([habitationId, 14000, 4500, 2.2]);
+    const file = await workbook.xlsx.writeBuffer();
+
+    const response = await request(app)
+      .post("/api/uploads")
+      .set("Authorization", `Bearer ${plannerToken}`)
+      .field("habitationId", habitationId)
+      .field("category", "demography")
+      .attach("file", Buffer.from(file), "demography.xlsx");
+
+    expect(response.status).toBe(202);
+    const batch = await pollUntil(
+      async () => (await request(app).get(`/api/uploads/${response.body.data.id}`).set("Authorization", `Bearer ${plannerToken}`)).body.data,
+      value => value.status !== "pending" && value.status !== "validating"
+    );
+    expect(batch.status).toBe("validated");
+    expect(batch.rowCount).toBe(1);
+    expect(batch.validRowCount).toBe(1);
   });
 });

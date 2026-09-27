@@ -8,6 +8,7 @@ import userRoutes from "./modules/auth/user.routes";
 import habitationRoutes from "./modules/habitations/habitation.routes";
 import mapLayerTopLevelRoutes from "./modules/mapLayers/mapLayerTopLevel.routes";
 import uploadRoutes from "./modules/uploads/upload.routes";
+import dataRecordRoutes from "./modules/dataRecords/dataRecord.routes";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler";
 
 export function createApp() {
@@ -25,6 +26,7 @@ export function createApp() {
   app.use("/api/habitations", habitationRoutes);          // also mounts nested /parameters and /map-layers
   app.use("/api/map-layers", mapLayerTopLevelRoutes);       // API-14
   app.use("/api/uploads", uploadRoutes);
+  app.use("/api/data-records", dataRecordRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

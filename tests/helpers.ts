@@ -1,6 +1,7 @@
 import { createApp } from "../src/app";
 import { pool } from "../src/config/db";
 import { hashPassword } from "../src/utils/password";
+import { closeQueues } from "../src/workers/queues";
 
 export const app = createApp();
 
@@ -18,7 +19,7 @@ export async function createTestUser(email: string, role: "admin" | "planner" | 
 }
 
 export async function closeDb() {
-  await pool.end();
+  await Promise.all([pool.end(), closeQueues()]);
 }
 
 /** Polls `fn` until it returns a truthy value or the timeout elapses. */

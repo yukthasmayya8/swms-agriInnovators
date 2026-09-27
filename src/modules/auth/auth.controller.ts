@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
-import { registerUser, loginUser, refreshAccessToken, activateUser } from "./auth.service";
+import { registerUser, loginUser, refreshAccessToken, activateUser, listPendingUsers } from "./auth.service";
+
+export const pendingUsers = asyncHandler(async (_req: Request, res: Response) => {
+  res.json({ success: true, data: await listPendingUsers() });
+});
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const user = await registerUser(req.body);

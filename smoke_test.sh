@@ -110,7 +110,7 @@ echo "== 17. Validation issues detail =="
 curl -s "$BASE/api/uploads/$BATCH_ID/issues" -H "Authorization: Bearer $PLANNER_TOKEN"; echo
 
 echo ""
-echo "== 18. Re-upload identical file -> expect 409 =="
+echo "== 18. Re-upload identical file -> expect 200 =="
 curl -s -o /dev/null -w "HTTP %{http_code}\n" -X POST $BASE/api/uploads -H "Authorization: Bearer $PLANNER_TOKEN" \
   -F "habitationId=$HAB_ID" -F "category=demography" -F "file=@/tmp/demography_bulk.csv"
 

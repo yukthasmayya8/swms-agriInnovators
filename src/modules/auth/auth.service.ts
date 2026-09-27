@@ -35,12 +35,10 @@ export async function loginUser(email: string, password: string) {
   const result = await query(`SELECT * FROM users WHERE email = $1`, [email]);
   const row = result.rows[0];
   if (!row) throw ApiError.unauthorized("Invalid email or password");
-  if (!row.is_active) throw ApiError.unauthorized("Account requires admin activation");
-
   const valid = await comparePassword(password, row.password_hash);
   if (!valid) throw ApiError.unauthorized("Invalid email or password");
 
-  const accessToken = signAccessToken(row.id, row.role);
+  const accessToken = signAccessToken(row.id, row.role, row.is_active);
   const refreshToken = signRefreshToken(row.id, crypto.randomUUID());
   return { accessToken, refreshToken, user: toPublicUser(row) };
 }
@@ -74,6 +72,14 @@ export async function activateUser(userId: string, patch: { isActive?: boolean; 
   return toPublicUser(result.rows[0]);
 }
 
+export async function listPendingUsers() {
+  const result = await query(
+    `SELECT id, name, email, role, is_active, created_at
+     FROM users WHERE is_active = false ORDER BY created_at ASC`
+  );
+  return result.rows.map(toPublicUser);
+}
+
 export async function refreshAccessToken(refreshToken: string) {
   let payload;
   try {
@@ -83,10 +89,10 @@ export async function refreshAccessToken(refreshToken: string) {
   }
   const result = await query(`SELECT * FROM users WHERE id = $1`, [payload.sub]);
   const row = result.rows[0];
-  if (!row || !row.is_active) throw ApiError.unauthorized("Account no longer active");
+  if (!row) throw ApiError.unauthorized("Account no longer exists");
 
   // Rotate: issue a brand new refresh token (new jti) alongside the new access token.
-  const accessToken = signAccessToken(row.id, row.role);
+  const accessToken = signAccessToken(row.id, row.role, row.is_active);
   const newRefreshToken = signRefreshToken(row.id, crypto.randomUUID());
   return { accessToken, refreshToken: newRefreshToken };
 }

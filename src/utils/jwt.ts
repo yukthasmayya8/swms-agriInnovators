@@ -6,6 +6,7 @@ export type Role = "admin" | "planner" | "researcher";
 export interface AccessTokenPayload {
   sub: string; // user id
   role: Role;
+  isActive: boolean;
   type: "access";
 }
 export interface RefreshTokenPayload {
@@ -14,8 +15,8 @@ export interface RefreshTokenPayload {
   jti: string; // unique id for this refresh token, so it can be rotated/deny-listed
 }
 
-export function signAccessToken(userId: string, role: Role): string {
-  const payload: AccessTokenPayload = { sub: userId, role, type: "access" };
+export function signAccessToken(userId: string, role: Role, isActive = true): string {
+  const payload: AccessTokenPayload = { sub: userId, role, isActive, type: "access" };
   return jwt.sign(payload, env.jwt.accessSecret, { expiresIn: env.jwt.accessExpiresIn } as jwt.SignOptions);
 }
 
