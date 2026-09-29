@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: swms-postgis
+    environment:
+      POSTGRES_DB: swms
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - swms_pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: swms-redis
+    command: ["redis-server", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - swms_redisdata:/data
+
+volumes:
+  swms_pgdata:
+  swms_redisdata:

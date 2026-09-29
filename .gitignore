@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/test-uploads/
+storage/manual-data.json
+*.log
