@@ -44,7 +44,8 @@ const categories = [
 
 const STORAGE_KEY = "swms-manual-data";
 const SESSION_KEY = "swms-session";
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000";
+// Same-origin by default: the API is served by Netlify Functions at /api (and by `netlify dev` locally).
+const API_BASE = import.meta.env.VITE_API_URL || "";
 
 function readActiveRecord() {
   try {
@@ -157,7 +158,7 @@ function AuthScreen({ onAuthenticated }) {
       else { setMode("login"); setMessage("Password reset. Sign in with your new password."); }
     } catch (requestError) {
       setError(requestError instanceof TypeError && requestError.message === "Failed to fetch"
-        ? `Cannot reach the SWMS API at ${API_BASE}. Start it with: npm run dev:api`
+        ? `Cannot reach the SWMS API${API_BASE ? ` at ${API_BASE}` : ""}. Run the app with: npm run dev`
         : requestError.message);
     }
     finally { setBusy(false); }

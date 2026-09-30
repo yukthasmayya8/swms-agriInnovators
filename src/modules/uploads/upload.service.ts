@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { query } from "../../config/db";
 import { storage } from "../../utils/storage";
 import { ApiError } from "../../utils/ApiError";
-import { validationQueue } from "../../workers/queues";
+import { enqueueValidationJob } from "../../workers/queues";
 
 const ALLOWED_EXTENSIONS = [".csv", ".xlsx"];
 const MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20MB per API-15 contract
@@ -43,11 +43,7 @@ export async function createUploadBatch(
   );
   const batch = result.rows[0];
 
-  await validationQueue.add(
-    "validate",
-    { batchId: batch.id },
-    { attempts: 3, backoff: { type: "exponential", delay: 2000 } }
-  );
+  await enqueueValidationJob({ batchId: batch.id });
 
   return batch;
 }

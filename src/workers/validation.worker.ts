@@ -2,11 +2,11 @@ import { Worker, Job } from "bullmq";
 import { parse } from "csv-parse/sync";
 import ExcelJS from "exceljs";
 import { ZodError } from "zod";
-import { redisConnection } from "../config/redis";
+import { getRedisConnection } from "../config/redis";
 import { query, withTransaction } from "../config/db";
 import { storage } from "../utils/storage";
 import { CATEGORY_SCHEMAS, CATEGORY_TABLES, CategoryName, toSnakeCase } from "../modules/parameters/parameter.categories";
-import { ValidationJobData } from "./queues";
+import type { ValidationJobData } from "./queues";
 
 /** Best-effort string -> typed value coercion for CSV cells before schema validation. */
 function coerceCell(value: string): unknown {
@@ -32,8 +32,7 @@ function zodIssueToType(issue: { code: string }): "missing_value" | "invalid_ran
   return "invalid_format";
 }
 
-async function processJob(job: Job<ValidationJobData>) {
-  const { batchId } = job.data;
+export async function processValidationJob({ batchId }: ValidationJobData) {
   const batchResult = await query(`SELECT * FROM upload_batches WHERE id = $1`, [batchId]);
   const batch = batchResult.rows[0];
   if (!batch || batch.is_deleted) return;
@@ -149,7 +148,7 @@ async function processJob(job: Job<ValidationJobData>) {
 
 export function startValidationWorker() {
   const queueName = process.env.NODE_ENV === "test" ? "dataset-validation-test" : "dataset-validation";
-  const worker = new Worker<ValidationJobData>(queueName, processJob, { connection: redisConnection });
+  const worker = new Worker<ValidationJobData>(queueName, (job: Job<ValidationJobData>) => processValidationJob(job.data), { connection: getRedisConnection() });
   worker.on("failed", (job, err) => {
     // eslint-disable-next-line no-console
     console.error(`Validation job ${job?.id} failed:`, err.message);

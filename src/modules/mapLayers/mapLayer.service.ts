@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { query } from "../../config/db";
 import { storage } from "../../utils/storage";
 import { ApiError } from "../../utils/ApiError";
-import { gisQueue } from "../../workers/queues";
+import { enqueueGisJob } from "../../workers/queues";
 
 const ALLOWED_EXTENSIONS = [".geojson", ".json", ".shp", ".zip"];
 const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB, per API-12 contract
@@ -29,7 +29,7 @@ export async function createMapLayer(
   );
   const mapLayer = result.rows[0];
 
-  await gisQueue.add("normalize", { mapLayerId: mapLayer.id }, { attempts: 2, backoff: { type: "exponential", delay: 2000 } });
+  await enqueueGisJob({ mapLayerId: mapLayer.id });
 
   return mapLayer;
 }

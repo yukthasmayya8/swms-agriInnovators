@@ -1,9 +1,9 @@
 import { UnrecoverableError, Worker, Job } from "bullmq";
 import * as shapefile from "shapefile";
-import { redisConnection } from "../config/redis";
+import { getRedisConnection } from "../config/redis";
 import { query } from "../config/db";
 import { storage } from "../utils/storage";
-import { GisJobData } from "./queues";
+import type { GisJobData } from "./queues";
 
 async function extractGeometries(sourceUrl: string): Promise<any[]> {
   const buffer = await storage.read(sourceUrl);
@@ -36,8 +36,7 @@ function looksLikeJson(buffer: Buffer): boolean {
   return first === "{" || first === "[";
 }
 
-async function processJob(job: Job<GisJobData>) {
-  const { mapLayerId } = job.data;
+export async function processGisJob({ mapLayerId }: GisJobData) {
   const layerResult = await query(`SELECT * FROM map_layers WHERE id = $1`, [mapLayerId]);
   const layer = layerResult.rows[0];
   if (!layer) return; // layer was deleted before the job ran
@@ -70,13 +69,13 @@ async function processJob(job: Job<GisJobData>) {
       `UPDATE map_layers SET status = 'failed', failure_reason = $2 WHERE id = $1`,
       [mapLayerId, String(err.message || err)]
     );
-    throw err; // let BullMQ record the failure / retry per the queue's attempts option
+    throw err; // let the job runner record the failure / retry per the attempts option
   }
 }
 
 export function startGisWorker() {
   const queueName = process.env.NODE_ENV === "test" ? "gis-processing-test" : "gis-processing";
-  const worker = new Worker<GisJobData>(queueName, processJob, { connection: redisConnection });
+  const worker = new Worker<GisJobData>(queueName, (job: Job<GisJobData>) => processGisJob(job.data), { connection: getRedisConnection() });
   worker.on("failed", (job, err) => {
     if (process.env.NODE_ENV === "test") return;
     // eslint-disable-next-line no-console
