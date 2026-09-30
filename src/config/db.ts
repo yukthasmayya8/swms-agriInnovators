@@ -1,7 +1,12 @@
 import { Pool, QueryResultRow } from "pg";
+import { getDatabase } from "@netlify/database";
 import { env } from "./env";
 
-export const pool = new Pool({ connectionString: env.databaseUrl });
+// An explicit DATABASE_URL (Docker/tests) wins; otherwise use Netlify Database,
+// which is provisioned automatically on Netlify and emulated by `netlify dev`.
+export const pool: Pool = env.databaseUrl
+  ? new Pool({ connectionString: env.databaseUrl })
+  : (getDatabase().pool as unknown as Pool);
 
 pool.on("error", (err: Error) => {
   // eslint-disable-next-line no-console

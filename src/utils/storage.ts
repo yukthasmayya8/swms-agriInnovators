@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { getStore } from "@netlify/blobs";
 import { env } from "../config/env";
 
 export interface StorageAdapter {
@@ -32,4 +33,28 @@ class LocalStorageAdapter implements StorageAdapter {
   }
 }
 
-export const storage: StorageAdapter = new LocalStorageAdapter(env.storage.localDir);
+/**
+ * Netlify Blobs storage — the default when running on Netlify (including
+ * `netlify dev`), so uploads persist across serverless invocations and are
+ * readable from the background functions that process them.
+ */
+class BlobsStorageAdapter implements StorageAdapter {
+  private store() {
+    return getStore({ name: "swms-uploads", consistency: "strong" });
+  }
+  async save(destinationKey: string, data: Buffer): Promise<string> {
+    const bytes = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+    await this.store().set(destinationKey, bytes);
+    return `blobs://${destinationKey}`;
+  }
+  async read(url: string): Promise<Buffer> {
+    const key = url.replace(/^blobs:\/\//, "");
+    const data = await this.store().get(key, { type: "arrayBuffer" });
+    if (!data) throw new Error(`Stored file not found: ${key}`);
+    return Buffer.from(data);
+  }
+}
+
+export const storage: StorageAdapter = env.storage.driver === "blobs"
+  ? new BlobsStorageAdapter()
+  : new LocalStorageAdapter(env.storage.localDir);

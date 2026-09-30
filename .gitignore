@@ -6,3 +6,6 @@ storage/uploads/*
 storage/test-uploads/
 storage/manual-data.json
 *.log
+
+# Local Netlify folder
+.netlify

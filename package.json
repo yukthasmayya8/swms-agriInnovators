@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "netlify dev",
+    "dev:frontend": "vite",
     "dev:api": "tsx watch src/server.ts",
     "dev:worker": "tsx watch src/worker.ts",
     "build": "vite build",
@@ -16,6 +17,8 @@
     "smoke:request": "powershell -NoProfile -ExecutionPolicy Bypass -File ./smoke_test.ps1"
   },
   "dependencies": {
+    "@netlify/blobs": "^11.1.2",
+    "@netlify/database": "^2.0.1",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.58.5",
     "cors": "^2.8.5",
@@ -32,11 +35,13 @@
     "pg": "^8.13.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "serverless-http": "^4.0.0",
     "shapefile": "^0.6.6",
     "vite": "^5.4.10",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@netlify/functions": "^6.0.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
